@@ -7,6 +7,14 @@ class RNN:
         self.state = 0
         self.weights = np.zeros()
 
+    def load_data(self, path):
+        """
+        Loads data from a .csv file and stores it in a pandas dataframe
+        :param path: string containing path to .csv file
+        :return: None
+        """
+
+        raise NotImplementedError
     def train(self, data):
         """
         Trains the recurrent neural network on a dataset
@@ -14,6 +22,21 @@ class RNN:
         :return:
         """
 
+        '''
+        Initialisation:
+        randomize weights.
+        '''
+
+        '''
+        Forward pass:
+        
+        '''
+
+        '''
+        Backpropagation:
+        unfold RNN in time, use classic backpropagation to calculate loss function for each timestep.
+        Take average of weight gradients and update weights accordingly.
+        '''
         raise NotImplementedError
 
     def evaluate(self, data):
