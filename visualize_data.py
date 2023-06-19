@@ -1,3 +1,7 @@
+#
+# Data visualisation
+#a
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -9,15 +13,6 @@ def visualise_data():
 
     gb = df.groupby(["store", "product"])
     groups = {x: gb.get_group(x) for x in gb.groups}
-    #print(groups)
-
-    '''
-    for key, data in groups.items():
-        # By default, we only take the column `number_sold`.
-        # Please modify this line if your model takes other columns as input
-        X = data.drop(["Date", "store", "product"], axis=1).values  # convert to numpy array
-        N = X.shape[0]  # total number of testing time steps
-    '''
 
     fig, axs = plt.subplots(7, 10, figsize=(40, 35))
     for index, store_axs in enumerate(axs):
@@ -25,7 +20,7 @@ def visualise_data():
             X = groups[(index, index2)]
             X = X.drop(["Date", "store", "product"], axis=1).values
             X = [item for sublist in X for item in sublist]
-            product_ax.plot(X)
+            product_ax.plot(X, linewidth=0.5)
             product_ax.set_yticks([min(X), max(X)])
             if index == 6:
                 product_ax.set_xticks([0, len(X)])
