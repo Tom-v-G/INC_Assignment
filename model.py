@@ -1,6 +1,7 @@
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import accuracy_score
+from sklearn.metrics import mean_absolute_percentage_error
 
 
 import torch
@@ -18,32 +19,50 @@ np.random.seed(random_seed)
 torch.manual_seed(random_seed)
 torch.cuda.manual_seed(random_seed)
 
+
+def load_data(path):
+    df = pd.read_csv(path, engine='python')
+    return df
+
+
+def split_data(df, train_split):
+    print(df.shape)
+    gb = df.groupby(["store", "product"]) #create subgroups for each store and product
+    groups = {x: gb.get_group(x) for x in gb.groups}
+    test_index = int(np.floor(groups[(0, 0)].shape[0] * train_split)) #index on which to split
+
+    train_groups = {x: gb.get_group(x).iloc[0:test_index - 1, :] for x in gb.groups}
+    test_groups = {x: gb.get_group(x).iloc[test_index:- 1, :] for x in gb.groups}
+
+    return train_groups, test_groups
+
+
+def create_window(df, index, window_size):
+    '''
+
+    :param df: dataframe
+    :param index: index of the timeseries value for which we wish to create a lookback window
+    :param window_size: lookback period + 1
+    :return: list of values with lenght of the window_size
+    '''
+
+    if index < window_size - 1:
+        raise ValueError(f'Cannot create lookback window of size {window_size} starting at index {index}')
+
+    return df.loc[:, 'number_sold'].iloc[index - window_size: index]
+
+
 class RNN(nn.Module):
-    def __init__(self):
+    def __init__(self, window_size, hidden_size):
         super().__init__()
-        #self.rnn_unit = nn.LSTM(input = )
-        #self.state = 0
-        #self.weights = np.zeros(shape=())
+        self.lstm = nn.LSTM(input_size=3, hidden_size=hidden_size) #LSTM initialization
+        self.linear = nn.Linear(hidden_size, 1) #hidden state to output layer
+        self.window_size = window_size
 
-    def load_data(self, path):
-        """
-        Loads data from a .csv file and stores it in a pandas dataframe
-        :param path: string containing path to .csv file
-        :return: pandas dataframe containing the dataset
-        """
-        dataset = pd.read_csv(path, engine='python')
-
-        return dataset
-
-    def normalize_data(self, dataset):
-        dataset = dataset.reshape(-1, 1)
-        dataset = dataset.astype("float32")
-        dataset.shape
-
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        dataset = scaler.fit_transform(dataset)
-
-        return dataset
+    def forward(self, x):
+        x, _ = self.lstm(x)
+        x = self.linear(x)
+        return x
 
     def train(self, data):
         """
@@ -88,7 +107,7 @@ class RNN(nn.Module):
 
         raise NotImplementedError
 
-    def save_model(self, path):
+    def save_model(self, name):
         """
         Saves RNN model to disk
         :param path:
@@ -96,3 +115,15 @@ class RNN(nn.Module):
         """
 
         raise NotImplementedError
+
+    '''
+        def normalize_data(self, dataset):
+            dataset = dataset.reshape(-1, 1)
+            dataset = dataset.astype("float32")
+            dataset.shape
+
+            scaler = MinMaxScaler(feature_range=(0, 1))
+            dataset = scaler.fit_transform(dataset)
+
+            return dataset
+    '''
