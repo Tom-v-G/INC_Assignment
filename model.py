@@ -26,7 +26,6 @@ def load_data(path):
 
 
 def split_data(df, train_split):
-    print(df.shape)
     gb = df.groupby(["store", "product"]) #create subgroups for each store and product
     groups = {x: gb.get_group(x) for x in gb.groups}
     test_index = int(np.floor(groups[(0, 0)].shape[0] * train_split)) #index on which to split
@@ -39,63 +38,49 @@ def split_data(df, train_split):
 
 def create_window(df, index, window_size):
     '''
+    Create a lookback window (feature) and a predication window (target) of a timeseries in a dataframe
 
     :param df: dataframe
     :param index: index of the timeseries value for which we wish to create a lookback window
     :param window_size: lookback period + 1
-    :return: list of values with lenght of the window_size
+    :return: feature list of timeseries values with length of the window_size and target list of values with length 5
+    as tensors.
     '''
 
     if index < window_size - 1:
-        raise ValueError(f'Cannot create lookback window of size {window_size} starting at index {index}')
+        raise ValueError(f'Cannot create lookback window of size {window_size} starting at index {index}.')
+    if index + 6 > df.shape[0]:
+        raise ValueError(f'Index {index + 6} is out of bounds.')
 
-    return df.loc[:, 'number_sold'].iloc[index - window_size: index]
+    feature = df.loc[:, 'number_sold'].iloc[index - window_size: index].values.astype('float32')
+    target = df.loc[:, 'number_sold'].iloc[index + 1: index + 6].values.astype('float32')
 
+    return torch.tensor(feature), torch.tensor(target)
+
+
+def add_store_and_product(feature, store, product):
+    '''
+    Add the store number and product number to the feature tensor
+    :param feature: tensor containing timeseries feature of an instance
+    :param store: store number
+    :param product: product number
+    :return: multidimensional tensor of the form [feature, store, product]
+    '''
+    store_tensor = torch.tensor(np.full(len(feature), store))
+    product_tensor = torch.tensor(np.full(len(feature), product))
+    updated_feature = torch.stack((feature, store_tensor, product_tensor), dim=1)
+    return updated_feature
 
 class RNN(nn.Module):
-    def __init__(self, window_size, hidden_size):
+    def __init__(self, hidden_size):
         super().__init__()
         self.lstm = nn.LSTM(input_size=3, hidden_size=hidden_size) #LSTM initialization
         self.linear = nn.Linear(hidden_size, 1) #hidden state to output layer
-        self.window_size = window_size
 
     def forward(self, x):
         x, _ = self.lstm(x)
         x = self.linear(x)
         return x
-
-    def train(self, data):
-        """
-        Trains the recurrent neural network on a dataset
-        :param data:
-        :return:
-        """
-
-        '''
-        Initialisation:
-        randomize weights.
-        '''
-
-        '''
-        Forward pass:
-
-        '''
-
-        '''
-        Backpropagation:
-        unfold RNN in time, use classic backpropagation to calculate loss function for each timestep.
-        Take average of weight gradients and update weights accordingly.
-        '''
-        raise NotImplementedError
-
-    def evaluate(self, data):
-        """
-        Predicts values using trained RNN
-        :param data:
-        :return:
-        """
-
-        raise NotImplementedError
 
     def load_model(self, model_data, path):
         """
@@ -110,20 +95,10 @@ class RNN(nn.Module):
     def save_model(self, name):
         """
         Saves RNN model to disk
-        :param path:
+        :param name: Name for the saved model
         :return:
         """
 
+
+
         raise NotImplementedError
-
-    '''
-        def normalize_data(self, dataset):
-            dataset = dataset.reshape(-1, 1)
-            dataset = dataset.astype("float32")
-            dataset.shape
-
-            scaler = MinMaxScaler(feature_range=(0, 1))
-            dataset = scaler.fit_transform(dataset)
-
-            return dataset
-    '''
