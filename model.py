@@ -9,6 +9,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data as data_util
+from torch.autograd import Variable
 
 import numpy as np
 import pandas as pd
@@ -22,6 +23,8 @@ torch.cuda.manual_seed(random_seed)
 
 def load_data(path):
     df = pd.read_csv(path, engine='python')
+    df = df.drop(["Date"], axis=1) #remove date from dataframe
+
     return df
 
 
@@ -36,9 +39,9 @@ def split_data(df, train_split):
     return train_groups, test_groups
 
 
-def create_window(df, index, window_size):
+def scale_and_window(df, index, window_size):
     '''
-    Create a lookback window (feature) and a predication window (target) of a timeseries in a dataframe
+    Create a lookback window (feature) and a prediction window (target) of a timeseries in a dataframe
 
     :param df: dataframe
     :param index: index of the timeseries value for which we wish to create a lookback window
@@ -46,13 +49,14 @@ def create_window(df, index, window_size):
     :return: feature list of timeseries values with length of the window_size and target list of values with length 5
     as tensors.
     '''
+    #scaler = MinMaxScaler(feature_range=(0, 1))
 
     if index < window_size - 1:
         raise ValueError(f'Cannot create lookback window of size {window_size} starting at index {index}.')
     if index + 6 > df.shape[0]:
         raise ValueError(f'Index {index + 6} is out of bounds.')
 
-    feature = df.loc[:, 'number_sold'].iloc[index - window_size: index].values.astype('float32')
+    feature = df.loc[:, 'number_sold'].iloc[index - window_size+1: index+1].values.astype('float32')
     target = df.loc[:, 'number_sold'].iloc[index + 1: index + 6].values.astype('float32')
 
     return torch.tensor(feature), torch.tensor(target)
@@ -72,15 +76,23 @@ def add_store_and_product(feature, store, product):
     return updated_feature
 
 class RNN(nn.Module):
-    def __init__(self, hidden_size):
-        super().__init__()
-        self.lstm = nn.LSTM(input_size=3, hidden_size=hidden_size) #LSTM initialization
-        self.linear = nn.Linear(hidden_size, 1) #hidden state to output layer
+    def __init__(self, hidden_size, input_amt):
+        super(RNN, self).__init__()
+        self.hidden_dim = hidden_size
+        self.layer_dim = 1 #amt of LSTM modules chained together
+        self.lstm = nn.LSTM(input_size=input_amt, hidden_size=self.hidden_dim) #LSTM initialization
+        self.linear = nn.Linear(self.hidden_dim, 5) #hidden state to output layer
 
     def forward(self, x):
-        x, _ = self.lstm(x)
-        x = self.linear(x)
-        return x
+        #  Initializing hidden state for first input
+        h0 = torch.zeros(1, self.hidden_dim)
+        #  Initializing cell state for first input
+        c0 = torch.zeros(1, self.hidden_dim)
+
+        #Call the LSTM module
+        out, (hn, cn) = self.lstm(x, (h0, c0))
+        out = self.linear(out[-1, :]) #  convert to output
+        return out
 
     def load_model(self, model_data, path):
         """

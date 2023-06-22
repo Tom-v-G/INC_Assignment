@@ -21,13 +21,9 @@ num_iterations = 20000
 train_test_ratio = 0.8
 
 train_groups, test_groups = split_data(df, train_test_ratio)
-model = RNN(hidden_size)
+model = RNN(hidden_size, 1)
 optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
 loss_fn = nn.MSELoss()
-
-#add scaler [3,4,5,6, 7, 8, 9]
-
-#print(create_window(train_groups[(0, 0)], 11, 10))
 
 # Stochastic Gradient Descent
 rand_store_list = np.random.randint(0, 6, num_iterations)
@@ -45,8 +41,8 @@ while iterator < num_iterations - 1:
     product = rand_product_list[iterator]
     index = rand_index_list[iterator]
 
-    feature_scaled, target_scaled = scale_and_window(train_groups[(store, product)], index, window_size)
-    feature = add_store_and_product(feature_scaled, store, product)
+    feature, target_scaled = scale_and_window(train_groups[(store, product)], index, window_size)
+    #feature = add_store_and_product(feature_scaled, store, product)
 
     #Training
     model.train()
@@ -85,7 +81,6 @@ fig, ax = plt.subplots()
 ax.plot(RMSE_list)
 plt.plot()
 plt.show()
-
 
 
 name = f'Model ws={window_size}, lr={learning_rate}, m={momentum} hs={hidden_size}, ni={num_iterations}, tr={train_test_ratio}.pt'
