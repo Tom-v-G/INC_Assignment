@@ -21,7 +21,7 @@ num_iterations = 20000
 train_test_ratio = 0.8
 
 train_groups, test_groups = split_data(df, train_test_ratio)
-model = RNN(hidden_size)
+model = RNN(hidden_size, 1)
 optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
 loss_fn = nn.MSELoss()
 
