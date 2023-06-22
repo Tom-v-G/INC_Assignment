@@ -85,12 +85,12 @@ class RNN(nn.Module):
 
     def forward(self, x):
         #  Initializing hidden state for first input
-        h0 = torch.zeros(1, self.hidden_dim)
+        h0 = torch.zeros(1, self.hidden_dim).requires_grad_()
         #  Initializing cell state for first input
-        c0 = torch.zeros(1, self.hidden_dim)
+        c0 = torch.zeros(1, self.hidden_dim).requires_grad_()
 
         #Call the LSTM module
-        out, (hn, cn) = self.lstm(x, (h0, c0))
+        out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
         out = self.linear(out[-1, :]) #  convert to output
         return out
 

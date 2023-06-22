@@ -21,7 +21,7 @@ num_iterations = 20000
 train_test_ratio = 0.8
 
 train_groups, test_groups = split_data(df, train_test_ratio)
-model = RNN(hidden_size, 1)
+model = RNN(hidden_size, 3)
 optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
 loss_fn = nn.MSELoss()
 
@@ -88,7 +88,7 @@ plt.show()
 
 
 
-name = f'Model ws={window_size}, lr={learning_rate}, m={momentum} hs={hidden_size}, ni={num_iterations}, tr={train_test_ratio}.pt'
-torch.save(model, 'saved_models/' + name)
+#name = f'Model ws={window_size}, lr={learning_rate}, m={momentum} hs={hidden_size}, ni={num_iterations}, tr={train_test_ratio}.pt'
+#torch.save(model, 'saved_models/' + name)
 
 
