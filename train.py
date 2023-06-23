@@ -14,7 +14,8 @@ from torchmetrics import MeanAbsolutePercentageError
 
 path = 'train.csv'  # update if train.csv is in a different directory
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') # train on GPU if possible
+# Train on GPU if possible
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Data preprocessing
 df = load_data(path)
