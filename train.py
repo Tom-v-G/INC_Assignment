@@ -30,10 +30,10 @@ lookback = 10
 learning_rate = 0.0001
 hidden_size = 128
 num_layers = 1
-n_epochs = 10
+n_epochs = 500
 batch_size = 64
 train_test_ratio = 0.67
-plot_training_RMSE = True
+plot_training_RMSE = False # For checking batch RMSE
 
 # Split data into training and testing group
 train_groups, test_groups = split_data(df, train_test_ratio)
