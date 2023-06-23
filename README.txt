@@ -26,11 +26,15 @@ we wish to have in the network, together with how many layers of LSMT modules we
 Many different configurations, with different lookback windows, amount of hidden nodes, learning rates,
 training times (in epochs), and amount of LSTM layers were tried. We got the best result with the following:
 
-A single layered LSTM with a learning rate of 0.0001, 128 hidden nodes and 500 epochs of training,
-using a lookback window of length 10.
+- A single LSTM module
+- A learning rate of 0.0001
+- 128 hidden nodes
+- 500 epochs of training
+- a lookback window of length 10
 
-
-
+Note: if train.py does not run first try replacing
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') with
+device = torch.device('cpu')
 
 Kind regards,
 

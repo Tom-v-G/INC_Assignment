@@ -15,7 +15,9 @@ from torchmetrics import MeanAbsolutePercentageError
 path = 'train.csv'  # update if train.csv is in a different directory
 
 # Train on GPU if possible
+# !!! Switch which line is commented out first if the code does not run
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#device = torch.device('cpu')
 
 # Data preprocessing
 df = load_data(path)
@@ -83,7 +85,7 @@ for epoch in range(n_epochs):
             train_RMSE_list.append(np.mean(batch_train_RMSE))
 
 name = f'Model lb={lookback}, lr={learning_rate}, hs={hidden_size}, epochs={n_epochs}, tr={train_test_ratio}, bs={batch_size}, nl={num_layers}'
-torch.save(model, 'saved_models/' + name + '.pt')
+torch.save(model, f'{name}.pt')
 
 if plot_training_RMSE:
     fig, ax = plt.subplots()

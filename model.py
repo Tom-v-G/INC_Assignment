@@ -12,7 +12,7 @@ torch.cuda.manual_seed(random_seed)
 
 # Train on GPU if possible
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
+#device = torch.device('cpu')
 
 def load_data(path):
     # Reads data from file and drops the data column

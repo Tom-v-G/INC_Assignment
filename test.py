@@ -9,6 +9,7 @@ from sklearn.preprocessing import MinMaxScaler
 
 # train on GPU if possible
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+#device = torch.device('cpu')
 
 # Import model
 model_name = 'Model lb=10, lr=0.0001, hs=128, epochs=500, tr=0.67, bs=64, nl=1.pt'
