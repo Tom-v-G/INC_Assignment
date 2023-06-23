@@ -15,7 +15,7 @@ def test_model(path, model_name):
     model = torch.load(path + '/' + model_name)  # load your model here
     model.eval()
 
-    #  Create parameter dictionary using dictionary comprehension
+    # Create parameter dictionary using dictionary comprehension
     model_name_adpt = model_name.split('Model ')[1].split('.pt')[0]
     parameters = model_name_adpt.split(", ")
     par_dict = {par.split('=')[0]: par.split('=')[1] for par in parameters}
@@ -35,17 +35,18 @@ def test_model(path, model_name):
     # Load testing data
     train_groups, test_groups = split_data(df, train_test_ratio)
 
-    #Score model on each (store, product) pair
+    # Score model on each (store, product) pair
     scores = {}
     for key, test_group in test_groups.items():
-        test_features, test_targets = create_rolling_windows({key: test_group}, lookback, 5)  # we want to predict 5 step into the future
+        # We want to predict 5 step into the future
+        test_features, test_targets = create_rolling_windows({key: test_group}, lookback, 5)
         test_features, test_targets = torch.Tensor(test_features), torch.Tensor(test_targets)
         test_loader = data.DataLoader(data.TensorDataset(test_features, test_targets), shuffle=True, batch_size=batch_size,
                                       drop_last=True)
         mape_score = []
         for feature, target in test_loader:
             predictions = []
-            #  Predict 5 time steps
+            # Predict 5 time steps
             for i in range(5):
                 pred_value = model(feature)
                 predictions.append(pred_value)
@@ -54,23 +55,23 @@ def test_model(path, model_name):
                 feat_list.append(pred_value.tolist())
                 feature = torch.tensor([feat_list])
             predictions = torch.tensor([predictions])
-            # print(predictions)
             mape_score.append(mean_absolute_percentage_error(target, predictions))
-        #print(mape_score)
+
         scores[key] = mape_score
     return scores
 
 
 path = './saved_models'
 folder = os.fsencode(path)
-
+print(os.listdir(folder))
 for index, file in enumerate(os.listdir(folder)):
-    try:
-        print(f'Evaluating model {index} / {len(os.listdir(folder))}')
+    print(f'Evaluating model {index} / {len(os.listdir(folder))}')
+    name = file.decode("utf-8")
+    print(name)
+    if name.endswith('.pt'):
         model_name = os.fsdecode(file)
         scores = test_model(path, model_name)
-        np.savez(f"scores/{model_name}_mape_score.npz", scores=scores)
-    except:
-        continue
+        print(scores)
+        np.savez(f"scores/{model_name}_mape_score_no_pred.npz", scores=scores)
 # save the performance metrics to file
 
