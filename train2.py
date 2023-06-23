@@ -2,6 +2,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from sklearn.preprocessing import MinMaxScaler
+
 from model import *
 import torch
 import torch.nn as nn
@@ -29,15 +31,23 @@ lookback = 15  # change to different values for different lookback windows
 
 hidden_size = 128 #amount of nodes in hidden layer
 num_layers = 2 #amt of LSTM modules chained together
+#
+# lookback_list = [10, 10, 10, 15, 15, 15, 15, 20, 20, 20]
+# learning_rate_list = [0.005, 0.001, 0.001, 0.005, 0.005, 0.001, 0.001, 0.005, 0.001, 0.001]
+# hidden_size_list = [64, 128, 256, 64, 128, 256, 512, 64, 128, 256]
+# num_layers_list = [1, 1, 2, 1, 1, 2, 2, 1, 1, 2]
+# n_epochs = 20
+# batch_size = 64
+# train_test_ratio = 0.67
+# learning_rate = 0.0001
 
-lookback_list = [10, 10, 10, 15, 15, 15, 15, 20, 20, 20]
-learning_rate_list = [0.005, 0.001, 0.001, 0.005, 0.005, 0.001, 0.001, 0.005, 0.001, 0.001]
-hidden_size_list = [64, 128, 256, 64, 128, 256, 512, 64, 128, 256]
-num_layers_list = [1, 1, 2, 1, 1, 2, 2, 1, 1, 2]
-n_epochs = 20
+lookback_list = [10]
+learning_rate_list = [0.0001]
+hidden_size_list = [128]
+num_layers_list = [1]
+n_epochs = 500
 batch_size = 64
 train_test_ratio = 0.67
-learning_rate = 0.0001
 
 for lookback, learning_rate, hidden_size, num_layers in zip(lookback_list, learning_rate_list, hidden_size_list, num_layers_list):
     train_groups, test_groups = split_data(df, train_test_ratio)
@@ -59,8 +69,9 @@ for lookback, learning_rate, hidden_size, num_layers in zip(lookback_list, learn
     loss_fn = MeanAbsolutePercentageError()
 
     # Batch Gradient Descent
-    train_RMSE_list = []
 
+    print('Starting Training')
+    train_RMSE_list = []
     for epoch in range(n_epochs):
         print(f'Epoch: {epoch}')
         #Training
@@ -78,7 +89,7 @@ for lookback, learning_rate, hidden_size, num_layers in zip(lookback_list, learn
             optimizer.step()
 
         #Validation
-        if epoch % 1 != 0:
+        if epoch % 10 != 0:
             continue
 
         model.eval()
@@ -98,8 +109,7 @@ for lookback, learning_rate, hidden_size, num_layers in zip(lookback_list, learn
     plt.plot()
 
 
-    name = f'Model lb={lookback}, lr={learning_rate}, hs={hidden_size}, epochs={n_epochs}, tr={train_test_ratio}, \
-    bs={batch_size}, nl={num_layers}'
+    name = f'Model lb={lookback}, lr={learning_rate}, hs={hidden_size}, epochs={n_epochs}, tr={train_test_ratio}, bs={batch_size}, nl={num_layers}'
     torch.save(model, 'saved_models/' + name + '.pt')
     plt.savefig('plots/' + name + '.pdf')
 
