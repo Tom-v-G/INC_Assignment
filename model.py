@@ -91,37 +91,26 @@ class RNN(nn.Module):
 
         #Call the LSTM module
         out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
-        out = self.linear(out[:, -1, :]) #  convert to output
-
+        out = self.linear(out[:, -1, :])  # convert to output
 
         return out.squeeze()
 
-    def predict(self, x):
+    def predict(self, x, steps):
         '''
-        Predict 5 timesteps in the future
-        :param x:
-        :return:
+        Predicts n steps into the future from a feature time series
+        :param x: Feature data
+        :param steps: amount of steps (int)
+        :return: prediction tensor of length steps
         '''
 
-        raise NotImplementedError
-
-    def load_model(self, model_data, path):
-        """
-        Loads model from external dump file
-        :param model_data:
-        :param path:
-        :return:
-        """
-
-        raise NotImplementedError
-
-    def save_model(self, name):
-        """
-        Saves RNN model to disk
-        :param name: Name for the saved model
-        :return:
-        """
-
-
-
-        raise NotImplementedError
+        predictions = []
+        #  Predict 5 time steps
+        for i in range(steps):
+            pred_value = self.forward(x)
+            predictions.append(pred_value)
+            feat_list = x.tolist()[0]
+            feat_list.pop(0)
+            feat_list.append(pred_value.tolist())
+            x = torch.tensor([feat_list])
+        predictions = torch.tensor([predictions])
+        return predictions

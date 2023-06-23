@@ -64,8 +64,9 @@ def test_model(path, model_name):
 path = './saved_models'
 folder = os.fsencode(path)
 
-for file in os.listdir(folder):
+for index, file in enumerate(os.listdir(folder)):
     try:
+        print(f'Evaluating model {index} / {len(os.listdir(folder))}')
         model_name = os.fsdecode(file)
         scores = test_model(path, model_name)
         np.savez(f"scores/{model_name}_mape_score.npz", scores=scores)
