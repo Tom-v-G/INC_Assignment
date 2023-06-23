@@ -2,38 +2,32 @@ from model import *
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from pathlib import Path
+import os
 
-def visualise_data():
-    test = RNN()
-    data = test.load_data('~/Documents/INC/train.csv')
-    fig, axs = plt.subplots(1, 7)
-    for index, ax in enumerate(axs):
-        for j in range(10):
-            print( data.loc[ data['store'] == index & data['product'] == j, ['number_sold'] ])
+def mean_scores_dict():
+    path = './scores'
+    folder = os.fsencode(path)
 
+    files = []
 
+    mean_score = {}
+    for file in os.listdir(folder):
+        name = os.fsdecode(file)
+        score_list = []
+        with np.load(path + '/' + name, allow_pickle=True) as data:
+            for item in data.files:
+                score_dict = data[item].item()
+
+            for key, scores in score_dict.items():
+                score_list.append(np.mean(scores))
+                mean_score[(name, key)] = np.mean(scores)
+        final_score = np.mean(score_list)
+        print(f'{name}: {final_score}')
+
+    return mean_score
 def main():
-    window_size = 10
-    #test = RNN(1)
-    data = load_data('train.csv')
-    print(data)
-    #df = data.groupby(["store", "product"])
-    train_groups, test_groups = split_data(data, 0.8)
-    #print(train_groups[(0, 2)])
-    #scaler = MinMaxScaler(feature_range=(0, 1))
-    #tr = scaler.fit_transform(train_groups[(0, 2)])
-    #print(tr)
-    #print(scaler.inverse_transform(tr))
-    X, y = [], []
-    print(len(train_groups[(0, 0)]) )
-    for i in range(window_size + 1, len(train_groups[(0, 0)]) - 5):
-        X.append(train_groups[(0, 0)][i - window_size + 1: i + 1].astype('float32'))
-        y.append(train_groups[(0, 0)].loc[:, 'number_sold'].iloc[i + 1: i + 6].values.astype('float32'))
-    print(X)
-    print(y)
-
-
-
+    score_dict = mean_scores_dict()
 
 if __name__ == "__main__":
     main()

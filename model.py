@@ -20,6 +20,7 @@ np.random.seed(random_seed)
 torch.manual_seed(random_seed)
 torch.cuda.manual_seed(random_seed)
 
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') #train on GPU if possible
 
 def load_data(path):
     df = pd.read_csv(path, engine='python')
@@ -38,29 +39,26 @@ def split_data(df, train_split):
 
     return train_groups, test_groups
 
-
-def scale_and_window(df, index, window_size):
+def create_rolling_windows(df_dict, lookback, target_amt):
     '''
-    Create a lookback window (feature) and a prediction window (target) of a timeseries in a dataframe
-
-    :param df: dataframe
-    :param index: index of the timeseries value for which we wish to create a lookback window
-    :param window_size: lookback period + 1
-    :return: feature list of timeseries values with length of the window_size and target list of values with length 5
-    as tensors.
+    create windows [i - window_size, i - window_size + 1, ..., i], [i+1, .., i+k] where i+1, .. i+k are targets
+    :param df_dict: Pandas dataframe dictionary indexed (store, product)
+    :param windows_size: integer
+    :return: np.arrays of feature series and target value
     '''
-    #scaler = MinMaxScaler(feature_range=(0, 1))
 
-    if index < window_size - 1:
-        raise ValueError(f'Cannot create lookback window of size {window_size} starting at index {index}.')
-    if index + 6 > df.shape[0]:
-        raise ValueError(f'Index {index + 6} is out of bounds.')
-
-    feature = df.loc[:, 'number_sold'].iloc[index - window_size+1: index+1].values.astype('float32')
-    target = df.loc[:, 'number_sold'].iloc[index + 1: index + 6].values.astype('float32')
-
-    return torch.tensor(feature), torch.tensor(target)
-
+    feature_list = []
+    target_list = []
+    for group in df_dict:
+        df = df_dict[group]
+        i = 0
+        while i < len(df) - lookback - target_amt -1:
+            feature = df.loc[:, 'number_sold'].iloc[i: i+lookback].values.astype('float32')
+            target = df.loc[:, 'number_sold'].iloc[i+lookback:i + lookback + target_amt].astype('float32')
+            feature_list.append([feature])
+            target_list.append([target])
+            i += lookback + target_amt + 1
+    return np.vstack(feature_list), np.vstack(target_list)
 
 def add_store_and_product(feature, store, product):
     '''
@@ -76,23 +74,36 @@ def add_store_and_product(feature, store, product):
     return updated_feature
 
 class RNN(nn.Module):
-    def __init__(self, hidden_size, input_amt):
+    def __init__(self, hidden_size, num_layers):
         super(RNN, self).__init__()
         self.hidden_dim = hidden_size
-        self.layer_dim = 1 #amt of LSTM modules chained together
-        self.lstm = nn.LSTM(input_size=input_amt, hidden_size=self.hidden_dim) #LSTM initialization
-        self.linear = nn.Linear(self.hidden_dim, 5) #hidden state to output layer
+        self.num_layers = num_layers #amt of LSTM modules chained together
+        self.lstm = nn.LSTM(input_size=1, hidden_size=self.hidden_dim, num_layers=self.num_layers, batch_first=True) #LSTM initialization
+        self.linear = nn.Linear(self.hidden_dim, 1) #hidden state to output layer
 
     def forward(self, x):
         #  Initializing hidden state for first input
-        h0 = torch.zeros(1, self.hidden_dim).requires_grad_()
+        h0 = torch.zeros(self.num_layers, x.shape[0], self.hidden_dim).requires_grad_()
         #  Initializing cell state for first input
-        c0 = torch.zeros(1, self.hidden_dim).requires_grad_()
+        c0 = torch.zeros(self.num_layers, x.shape[0], self.hidden_dim).requires_grad_()
+
+        x = x.unsqueeze(2) # modify data shape
 
         #Call the LSTM module
         out, (hn, cn) = self.lstm(x, (h0.detach(), c0.detach()))
-        out = self.linear(out[-1, :]) #  convert to output
-        return out
+        out = self.linear(out[:, -1, :]) #  convert to output
+
+
+        return out.squeeze()
+
+    def predict(self, x):
+        '''
+        Predict 5 timesteps in the future
+        :param x:
+        :return:
+        '''
+
+        raise NotImplementedError
 
     def load_model(self, model_data, path):
         """

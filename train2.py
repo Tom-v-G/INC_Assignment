@@ -9,81 +9,97 @@ import torch.nn.functional as F
 import torch.optim as optim
 import torch.utils.data as data
 
+from torchmetrics import MeanAbsolutePercentageError
+
 path = 'train.csv'  # update if train.csv is in a different directory
+
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu') #train on GPU if possible
+
+#Data preprocessing
 df = load_data(path)
 
+#Data scaling
+scaler = MinMaxScaler(feature_range=(0, 1))
+scaler = scaler.fit(df[['number_sold']])
+value_column = scaler.transform(df[['number_sold']])
+df['number_sold'] = value_column
+
 # Hyperparameters
-window_size = 10  # change to different values for different lookback windows
-learning_rate = 0.05
-momentum = 0.3
-hidden_size = 256
-num_iterations = 20000
-train_test_ratio = 0.8
+lookback = 15  # change to different values for different lookback windows
 
-train_groups, test_groups = split_data(df, train_test_ratio)
-model = RNN(hidden_size, 1)
-optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
-loss_fn = nn.MSELoss()
+hidden_size = 128 #amount of nodes in hidden layer
+num_layers = 2 #amt of LSTM modules chained together
 
-# Stochastic Gradient Descent
-rand_store_list = np.random.randint(0, 6, num_iterations)
-rand_product_list = np.random.randint(0, 9, num_iterations)
-rand_index_list = np.random.randint(window_size + 1, train_groups[(0, 0)].shape[0] - 5, num_iterations) # index for sampling from training set
+lookback_list = [10, 10, 10, 15, 15, 15, 15, 20, 20, 20]
+learning_rate_list = [0.005, 0.001, 0.001, 0.005, 0.005, 0.001, 0.001, 0.005, 0.001, 0.001]
+hidden_size_list = [64, 128, 256, 64, 128, 256, 512, 64, 128, 256]
+num_layers_list = [1, 1, 2, 1, 1, 2, 2, 1, 1, 2]
+n_epochs = 20
+batch_size = 64
+train_test_ratio = 0.67
+learning_rate = 0.0001
 
-iterator = 0
+for lookback, learning_rate, hidden_size, num_layers in zip(lookback_list, learning_rate_list, hidden_size_list, num_layers_list):
+    train_groups, test_groups = split_data(df, train_test_ratio)
+    features, targets = create_rolling_windows(train_groups, lookback, 1)
+    test_features, test_targets = create_rolling_windows(test_groups, lookback, 1)
 
-RMSE_list = []
-while iterator < num_iterations - 1:
-    iterator += 1
+    # Construct Dataloader
+    features, targets = torch.Tensor(features), torch.Tensor(targets)
+    test_features, test_targets = torch.Tensor(test_features), torch.Tensor(test_targets)
 
-    #Data preprocessing
-    store = rand_store_list[iterator]
-    product = rand_product_list[iterator]
-    index = rand_index_list[iterator]
+    loader = data.DataLoader(data.TensorDataset(features, targets), shuffle=True, batch_size=batch_size, drop_last=True)
+    test_loader = data.DataLoader(data.TensorDataset(test_features, test_targets), shuffle=True, batch_size=batch_size,
+                                  drop_last=True)
 
-    feature, target_scaled = scale_and_window(train_groups[(store, product)], index, window_size)
-    #feature = add_store_and_product(feature_scaled, store, product)
+    #Initialise RNN
+    model = RNN(hidden_size, num_layers)
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    # loss_fn = nn.MSELoss()
+    loss_fn = MeanAbsolutePercentageError()
 
-    #Training
-    model.train()
-    target_pred = model(feature)
-    #target_pred_scaled = model(feature)
+    # Batch Gradient Descent
+    train_RMSE_list = []
 
-    #Invert scaling
-    #target_pred = scaler.inverse_transform(target_pred_scaled)
-    target = target_scaled
-    #target = scaler.inverse_transform(target_scaled)
+    for epoch in range(n_epochs):
+        print(f'Epoch: {epoch}')
+        #Training
+        model.train()
+        batch_RMSE = []
+        for X_batch, y_batch in loader:
+            X_batch = X_batch.to(device)
+            y_batch = y_batch.to(device)
+            y_pred = model(X_batch)
+            y_batch = torch.squeeze(y_batch)
 
-    loss = loss_fn(target_pred, target)
-    optimizer.zero_grad()
-    loss.backward()
-    optimizer.step()
+            loss = loss_fn(y_pred, y_batch)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
-    #Validation
-    if iterator % 100 != 0:
-        continue
+        #Validation
+        if epoch % 1 != 0:
+            continue
 
-    model.eval()
-    with torch.no_grad():
-        target_pred = model(feature)
-        # target_pred_scaled = model(feature)
-        #target_pred = scaler.inverse_transform(target_pred_scaled)
-        target = target_scaled
-        #target = scaler.inverse_transform(target_scaled)
-        print(f"Epoch: {iterator}")
-        print('target: ', target)
-        print('prediction: ', target_pred)
-        RMSE = np.sqrt(loss_fn(target_pred, target))
-        print(f'RMSE = {RMSE}')
-        RMSE_list.append(RMSE)
+        model.eval()
+        with torch.no_grad():
+            batch_train_RMSE = []
+            for X_batch, y_batch in loader:
+                X_batch = X_batch.to(device)
+                y_batch = y_batch.to(device)
+                y_pred = model(X_batch)
+                y_batch = torch.squeeze(y_batch)
+                batch_train_RMSE.append(np.sqrt(loss_fn(y_pred, y_batch)))
+            #print(f'Train RMSE = {np.mean(batch_train_RMSE)}')
+            train_RMSE_list.append(np.mean(batch_train_RMSE))
 
-fig, ax = plt.subplots()
-ax.plot(RMSE_list)
-plt.plot()
-plt.show()
+    fig, ax = plt.subplots()
+    ax.plot(train_RMSE_list, color='green')
+    plt.plot()
 
 
-name = f'Model ws={window_size}, lr={learning_rate}, m={momentum} hs={hidden_size}, ni={num_iterations}, tr={train_test_ratio}.pt'
-torch.save(model, 'saved_models/' + name)
-
+    name = f'Model lb={lookback}, lr={learning_rate}, hs={hidden_size}, epochs={n_epochs}, tr={train_test_ratio}, \
+    bs={batch_size}, nl={num_layers}'
+    torch.save(model, 'saved_models/' + name + '.pt')
+    plt.savefig('plots/' + name + '.pdf')
 
